@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EOR Screening Master - Arvis & Min (2025)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Define app logic before Alpine loads -->
+    <script>
+        const EOR_CRITERIA = {
+            "Miscible CO2": { gravity: { min: 21, avg: 36, mode: 'standard' }, viscosity: { max: 35, avg: 1.65, mode: 'inverse' }, oilSaturation: { min: 15, avg: 52.8, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 0.5 }, permeability: { min: 0, avg: 0, mode: 'nc' }, depth: { min: 1500, avg: 6171, mode: 'standard' }, temp: { min: 0, avg: 0, mode: 'nc' }, porosity: { min: 3, avg: 14.8, mode: 'standard' } },
+            "Miscible HC": { gravity: { min: 13, avg: 40, mode: 'standard' }, viscosity: { max: 18000, avg: 134.3, mode: 'inverse' }, oilSaturation: { min: 30, avg: 76.5, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 0.5 }, permeability: { min: 0, avg: 0, mode: 'nc' }, depth: { min: 1970, avg: 6192, mode: 'standard' }, temp: { min: 0, avg: 0, mode: 'nc' }, porosity: { min: 1, avg: 14.5, mode: 'standard' } },
+            "Miscible WAG": { gravity: { min: 33, avg: 35.6, mode: 'standard' }, viscosity: { max: 0.4, avg: 0.175, mode: 'inverse' }, oilSaturation: { min: 40, avg: 75, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 1 }, permeability: { min: 0, avg: 0, mode: 'nc' }, depth: { min: 1312, avg: 9108, mode: 'standard' }, temp: { min: 194, avg: 229, mode: 'standard' }, porosity: { min: 11, avg: 18.3, mode: 'standard' } },
+            "Miscible N2": { gravity: { min: 20, avg: 48, mode: 'standard' }, viscosity: { max: 25, avg: 0.2, mode: 'inverse' }, oilSaturation: { min: 40, avg: 75.8, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 0.5 }, permeability: { min: 0, avg: 0, mode: 'nc' }, depth: { min: 3340, avg: 7436, mode: 'standard' }, temp: { min: 0, avg: 0, mode: 'nc' }, porosity: { min: 4, avg: 11.2, mode: 'standard' } },
+            "Immiscible N2": { gravity: { min: 16, avg: 41, mode: 'standard' }, viscosity: { max: 18000, avg: 2256, mode: 'inverse' }, oilSaturation: { min: 35, avg: 70.5, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 0.5 }, permeability: { min: 0, avg: 0, mode: 'nc' }, depth: { min: 1700, avg: 7914, mode: 'standard' }, temp: { min: 0, avg: 0, mode: 'nc' }, porosity: { min: 11, avg: 19.5, mode: 'standard' } },
+            "Immiscible CO2": { gravity: { min: 11, avg: 22.6, mode: 'standard' }, viscosity: { max: 660, avg: 65.5, mode: 'inverse' }, oilSaturation: { min: 15, avg: 63, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 0.5 }, permeability: { min: 0, avg: 0, mode: 'nc' }, depth: { min: 1800, avg: 3385, mode: 'standard' }, temp: { min: 0, avg: 0, mode: 'nc' }, porosity: { min: 17, avg: 26.3, mode: 'standard' } },
+            "Immiscible HC": { gravity: { min: 11, avg: 38, mode: 'standard' }, viscosity: { max: 660, avg: 2.1, mode: 'inverse' }, oilSaturation: { min: 35, avg: 74.5, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 1 }, permeability: { min: 0, avg: 0, mode: 'nc' }, depth: { min: 1800, avg: 6500, mode: 'standard' }, temp: { min: 0, avg: 0, mode: 'nc' }, porosity: { min: 5, avg: 13.5, mode: 'standard' } },
+            "Immiscible HC + WAG": { gravity: { min: 22, avg: 34, mode: 'standard' }, viscosity: { max: 4, avg: 1.0, mode: 'inverse' }, oilSaturation: { min: 35, avg: 70, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 1 }, permeability: { min: 0, avg: 0, mode: 'nc' }, depth: { min: 2650, avg: 7219, mode: 'standard' }, temp: { min: 0, avg: 0, mode: 'nc' }, porosity: { min: 18, avg: 25, mode: 'standard' } },
+            "Polymer": { gravity: { min: 13, avg: 33, mode: 'standard' }, viscosity: { max: 4000, avg: 111, mode: 'inverse' }, oilSaturation: { min: 34, avg: 72, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 0.5 }, permeability: { min: 1.8, avg: 817, mode: 'standard' }, depth: { max: 9000, avg: 700, mode: 'inverse' }, temp: { max: 200, avg: 153, mode: 'inverse' }, porosity: { min: 10.4, avg: 22.5, mode: 'standard' } },
+            "ASP Flood": { gravity: { min: 16, avg: 33, mode: 'standard' }, viscosity: { max: 35, avg: 11, mode: 'inverse' }, oilSaturation: { min: 35, avg: 63.4, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 0.5 }, permeability: { min: 10, avg: 486, mode: 'standard' }, depth: { min: 500, avg: 3117, mode: 'standard' }, temp: { max: 200, avg: 119, mode: 'inverse' }, porosity: { min: 4, avg: 26.6, mode: 'standard' } },
+            "Surfactant + Polymer/Alkaline": { gravity: { min: 20, avg: 33, mode: 'standard' }, viscosity: { max: 35, avg: 11.15, mode: 'inverse' }, oilSaturation: { min: 10, avg: 55, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 0.5 }, permeability: { min: 10, avg: 55, mode: 'standard' }, depth: { min: 625, avg: 3096, mode: 'standard' }, temp: { max: 200, avg: 138.5, mode: 'inverse' }, porosity: { min: 11, avg: 16.4, mode: 'standard' } },
+            "Combustion": { gravity: { min: 10, avg: 20, mode: 'standard' }, viscosity: { max: 5000, avg: 1200, mode: 'inverse' }, oilSaturation: { min: 50, avg: 69.5, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 1 }, permeability: { min: 10, avg: 1033, mode: 'standard' }, depth: { min: 400, avg: 5570, mode: 'standard' }, temp: { min: 0, avg: 155, mode: 'standard' }, porosity: { min: 14, avg: 23.3, mode: 'standard' } },
+            "Steam": { gravity: { min: 8, avg: 13.5, mode: 'standard' }, viscosity: { max: 5000000, avg: 18836, mode: 'inverse' }, oilSaturation: { min: 32, avg: 66, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 0.5 }, permeability: { min: 200, avg: 2540, mode: 'standard' }, depth: { max: 4500, avg: 1500, mode: 'inverse' }, temp: { min: 0, avg: 175, mode: 'standard' }, porosity: { min: 10, avg: 32.2, mode: 'standard' } },
+            "Hot Water": { gravity: { min: 12, avg: 26.6, mode: 'standard' }, viscosity: { max: 200000, avg: 3351, mode: 'inverse' }, oilSaturation: { min: 15, avg: 62.3, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 1 }, permeability: { min: 35, avg: 2943, mode: 'standard' }, depth: { min: 500, avg: 1721, mode: 'standard' }, temp: { min: 60, avg: 98.5, mode: 'standard' }, porosity: { min: 25, avg: 31.2, mode: 'standard' } },
+            "Microbial": { gravity: { min: 12, avg: 26.6, mode: 'standard' }, viscosity: { max: 8900, avg: 2977, mode: 'inverse' }, oilSaturation: { min: 25, avg: 45, mode: 'standard' }, formation: { scoreSand: 1, scoreCarb: 1 }, permeability: { min: 12, avg: 133, mode: 'standard' }, depth: { min: 0, avg: 5786, mode: 'nc' }, temp: { max: 200, avg: 150, mode: 'inverse' }, porosity: { min: 12, avg: 19, mode: 'standard' } }
+        };
+
+        const CASE_STUDIES = {
+            "default": { label: "Select Reservoir Case...", inputs: null },
+            "resA": { 
+                label: "Reservoir A", 
+                inputs: { gravity: 24, viscosity: 5.00, oilSaturation: 30, formation: 'Carbonate', permeability: 20, depth: 6500, temp: 192.8, porosity: 25 } 
+            },
+            "resB": { 
+                label: "Reservoir B", 
+                inputs: { gravity: 13, viscosity: 100000.0, oilSaturation: 50, formation: 'Sandstone', permeability: 550, depth: 1500, temp: 121.4, porosity: 35 } 
+            },
+            "resC": { 
+                label: "Reservoir C", 
+                inputs: { gravity: 42, viscosity: 5.00, oilSaturation: 30, formation: 'Carbonate', permeability: 20, depth: 6500, temp: 192.8, porosity: 25 } 
+            },
+            "resD": {
+                label: "Reservoir D",
+                inputs: { gravity: 18, viscosity: 25.0, oilSaturation: 70, formation: 'Sandstone', permeability: 200, depth: 4200, temp: 160, porosity: 20 }
+            },
+            "resE": {
+                label: "Reservoir E",
+                inputs: { gravity: 13, viscosity: 110000.0, oilSaturation: 60, formation: 'Sandstone', permeability: 550, depth: 3000, temp: 142, porosity: 35 }
+            },
+            "resF": {
+                label: "Reservoir F",
+                inputs: { gravity: 30, viscosity: 500.0, oilSaturation: 70, formation: 'Carbonate', permeability: 8, depth: 2000, temp: 128, porosity: 17 }
+            }
+        };
+
+        window.eorApp = function() {
+            return {
+                inputs: { gravity: 45, viscosity: 5.00, oilSaturation: 50, formation: 'Carbonate', permeability: 20, depth: 6500, temp: 192.8, porosity: 30 },
+                selectedCase: "resA",
+                caseStudies: CASE_STUDIES,
+                inputMeta: { 
+                    gravity: { label: 'Oil Gravity', unit: '°API' }, 
+                    viscosity: { label: 'Oil Viscosity', unit: 'cp' }, 
+                    oilSaturation: { label: 'Saturation', unit: '% PV' },
+                    permeability: { label: 'Permeability', unit: 'mD' },
+                    depth: { label: 'Depth', unit: 'ft' },
+                    temp: { label: 'Temperature', unit: '°F' },
+                    porosity: { label: 'Porosity', unit: '%' }
+                },
+                results: [],
+                topMethod: null,
+                validCount: 0,
+                showModal: false,
+                selectedMethod: null,
+                chart: null,
+
+                init() {
+                    this.updateResults();
+                    if (window.lucide) lucide.createIcons();
+                },
+
+                handleCaseChange() {
+                    if (this.selectedCase && this.caseStudies[this.selectedCase].inputs) {
+                        this.inputs = JSON.parse(JSON.stringify(this.caseStudies[this.selectedCase].inputs));
+                        this.updateResults();
+                    }
+                },
+
+                calculateScore(val, crit) {
+                    if (!crit || crit.mode === 'nc') return 1;
+                    if (crit.mode === 'standard') {
+                        if (val < crit.min) return 0;
+                        if (val >= crit.avg) return 1;
+                        return (val - crit.min) / (crit.avg - crit.min);
+                    }
+                    if (crit.mode === 'inverse') {
+                        if (crit.max && val > crit.max) return 0;
+                        if (val <= crit.avg) return 1;
+                        return 1 - ((val - crit.avg) / (crit.max - crit.avg));
+                    }
+                    return 0;
+                },
+
+                updateResults() {
+                    const newResults = [];
+                    Object.entries(EOR_CRITERIA).forEach(([name, crit]) => {
+                        let total = 0, count = 0, violation = false;
+                        const scores = {};
+                        
+                        const keys = ['gravity', 'viscosity', 'oilSaturation', 'permeability', 'depth', 'temp', 'porosity'];
+                        keys.forEach(k => {
+                            const s = this.calculateScore(this.inputs[k], crit[k]);
+                            if (s === 0 && crit[k] && crit[k].mode !== 'nc') violation = true;
+                            scores[k] = s;
+                            total += s; count++;
+                        });
+
+                        const formS = this.inputs.formation === 'Sandstone' ? crit.formation.scoreSand : crit.formation.scoreCarb;
+                        scores.formation = formS;
+                        total += formS; count++;
+
+                        newResults.push({ method: name, score: total / count, violation, details: scores });
+                    });
+
+                    this.results = newResults.sort((a, b) => b.score - a.score);
+                    const validMethods = this.results.filter(r => !r.violation);
+                    this.topMethod = validMethods.length > 0 ? validMethods[0] : null;
+                    this.validCount = validMethods.length;
+                    
+                    this.$nextTick(() => {
+                        this.renderChart();
+                        // Re-initialize icons for newly rendered list items
+                        if (window.lucide) lucide.createIcons();
+                    });
+                },
+
+                downloadExcel() {
+                    const headers = ["EOR Method", "Status", "Overall Score (%)", "Parameter", "Input Value", "Min Limit", "Average (Target)", "Max Limit", "Score (0-1)"];
+                    const rows = [];
+                    this.results.forEach(r => {
+                        const criteria = EOR_CRITERIA[r.method];
+                        Object.keys(this.inputMeta).forEach((key, idx) => {
+                            const crit = criteria[key];
+                            rows.push([idx === 0 ? r.method : "", idx === 0 ? (r.violation ? "Excluded" : "Valid") : "", idx === 0 ? (r.score * 100).toFixed(2) + "%" : "", this.inputMeta[key].label, this.inputs[key], crit?.min ?? "N/A", crit?.avg || "N/A", crit?.max ?? "N/A", r.details[key].toFixed(3)]);
+                        });
+                        rows.push(["", "", "", "Formation", this.inputs.formation, "-", "Match", "-", r.details.formation.toFixed(3)]);
+                        rows.push(new Array(headers.length).fill("")); 
+                    });
+                    let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.map(val => `"${val}"`).join(",")).join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", `EOR_Screening_Report.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                },
+
+                openModal(method) {
+                    this.selectedMethod = method;
+                    this.showModal = true;
+                    this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+                },
+
+                renderChart() {
+                    const validOnes = this.results.filter(r => !r.violation);
+                    const invalidOnes = this.results.filter(r => r.violation);
+                    const radarSelection = [...validOnes, ...invalidOnes].slice(0, 3);
+
+                    const canvas = document.getElementById('radarChart');
+                    if (!canvas || !window.Chart) return;
+                    const labels = ['Gravity', 'Visc', 'Sat', 'Perm', 'Depth', 'Temp', 'Poro'];
+                    
+                    const datasets = radarSelection.map((m, i) => ({
+                        label: m.method + (m.violation ? ' (Excl.)' : ''),
+                        data: labels.map(l => {
+                            let key = l.toLowerCase();
+                            if (key === 'visc') key = 'viscosity';
+                            else if (key === 'sat') key = 'oilSaturation';
+                            else if (key === 'perm') key = 'permeability';
+                            else if (key === 'poro') key = 'porosity';
+                            return m.details[key] ?? 1;
+                        }),
+                        borderColor: i === 0 ? '#2563eb' : i === 1 ? '#10b981' : '#f59e0b',
+                        backgroundColor: i === 0 ? 'rgba(37, 99, 235, 0.1)' : i === 1 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        borderDash: m.violation ? [5, 5] : []
+                    }));
+                    
+                    if (this.chart) this.chart.destroy();
+                    this.chart = new Chart(canvas, {
+                        type: 'radar',
+                        data: { labels, datasets },
+                        options: {
+                            scales: { 
+                                r: { 
+                                    min: 0, max: 1, 
+                                    ticks: { display: false, stepSize: 0.2 },
+                                    grid: { color: 'rgba(0,0,0,0.05)' },
+                                    angleLines: { color: 'rgba(0,0,0,0.1)' },
+                                    pointLabels: { font: { size: 10, weight: '600' } }
+                                } 
+                            },
+                            plugins: { 
+                                legend: { 
+                                    display: true, 
+                                    position: 'bottom',
+                                    labels: { boxWidth: 10, usePointStyle: true, font: { size: 10 } }
+                                }
+                            },
+                            maintainAspectRatio: false
+                        }
+                    });
+                }
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .radar-container { position: relative; height: 320px; width: 100%; }
+        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans" x-data="eorApp()">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-600 p-2 rounded-lg text-white">
+                    <i data-lucide="activity"></i>
+                </div>
+                <div class="hidden sm:block">
+                    <h1 class="text-xl font-bold text-slate-900 tracking-tight leading-tight">EOR Screening Master</h1>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Arvis & Min (2025)</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <div class="relative flex items-center">
+                    <i data-lucide="database" class="absolute left-3 w-4 h-4 text-blue-500 pointer-events-none"></i>
+                    <select 
+                        x-model="selectedCase" 
+                        @change="handleCaseChange()" 
+                        class="pl-9 bg-slate-100 border-none text-slate-700 hover:bg-slate-200 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer focus:ring-2 focus:ring-blue-500 w-48 sm:w-64"
+                    >
+                        <template x-for="(study, key) in caseStudies" :key="key">
+                            <option :value="key" x-text="study.label"></option>
+                        </template>
+                    </select>
+                </div>
+                <button @click="downloadExcel()" class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-md flex items-center gap-2">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Export</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Left Column: Inputs -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex items-center gap-2 mb-6 text-slate-800 border-b border-slate-100 pb-4">
+                        <i data-lucide="settings-2" class="text-blue-500 w-5 h-5"></i>
+                        <h2 class="text-lg font-bold">Reservoir Characteristics</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <template x-for="(param, key) in inputMeta" :key="key">
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wide" x-text="param.label"></label>
+                                    <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 font-bold" x-text="param.unit"></span>
+                                </div>
+                                <input type="number" x-model.number="inputs[key]" @input="updateResults()" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-sm font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none">
+                            </div>
+                        </template>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Formation Lithology</label>
+                            <select x-model="inputs.formation" @change="updateResults()" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-sm font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                <option value="Sandstone">Sandstone</option>
+                                <option value="Carbonate">Carbonate</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Results & Analytics -->
+            <div class="lg:col-span-8 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Hero Card -->
+                    <div class="bg-gradient-to-br from-slate-900 to-blue-900 rounded-2xl shadow-xl text-white p-7 relative overflow-hidden group">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                        <h3 class="text-blue-300 text-xs font-bold uppercase tracking-widest mb-1">Primary Recommendation</h3>
+                        <h2 class="text-3xl font-extrabold mb-5" x-text="topMethod ? topMethod.method : 'No Valid Methods'"></h2>
+                        
+                        <div class="flex items-end gap-6">
+                           <div>
+                              <span class="block text-4xl font-black text-white" x-text="topMethod ? (topMethod.score * 100).toFixed(1) + '%' : '0%'"></span>
+                              <span class="text-[10px] font-bold text-blue-300 uppercase tracking-wider">Overall Match Score</span>
+                           </div>
+                           <div class="flex-1 pb-1">
+                                <p class="text-xs text-slate-300 leading-relaxed italic" x-text="topMethod ? 'Based on multi-parameter score optimization against Arvis & Min criteria.' : 'Adjust reservoir inputs to find compatible EOR methods.'"></p>
+                           </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart Card -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Suitability Profile</h3>
+                            <span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold">Top 3 Methods</span>
+                        </div>
+                        <div class="radar-container">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Grid -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-6 py-5 border-b border-slate-100 bg-white flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-400"></i>
+                            <h3 class="font-bold text-slate-800">Scoring Analysis</h3>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            <span class="text-xs text-slate-500 font-bold uppercase tracking-tight" x-text="validCount + ' Methods Compatible' "></span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+                        <template x-for="(res, index) in results" :key="res.method">
+                            <div @click="openModal(res)" 
+                                :class="res.violation ? 'bg-slate-50/50 border-slate-100 opacity-60 grayscale' : 'bg-white border-slate-200 hover:border-blue-400 hover:shadow-lg hover:-translate-y-1'" 
+                                class="p-5 rounded-2xl border cursor-pointer transition-all group relative overflow-hidden"
+                            >
+                                <div class="flex justify-between items-start mb-3">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="flex items-center justify-center w-7 h-7 rounded-lg text-xs font-black shadow-inner" :class="!res.violation && res === topMethod ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'">
+                                            <span x-text="index + 1"></span>
+                                        </div>
+                                        <h3 class="font-bold text-slate-800 text-sm group-hover:text-blue-600 truncate max-w-[120px]" x-text="res.method"></h3>
+                                    </div>
+                                    <div x-show="res.violation" style="display: none;">
+                                        <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400"></i>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex flex-wrap items-center gap-1.5 mb-4">
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase" :class="res.violation ? 'bg-slate-200 text-slate-600' : (res.score > 0.75 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700')" x-text="(res.score * 100).toFixed(1) + '%'"></span>
+                                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter" x-text="res.violation ? 'Excluded' : 'Valid'"></span>
+                                </div>
+                                
+                                <div class="w-full bg-slate-100 rounded-full h-1.5">
+                                    <div class="h-full rounded-full transition-all duration-700" :class="res.violation ? 'bg-red-300' : 'bg-blue-600'" :style="'width: ' + (res.score * 100) + '%'"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for Detailed Score -->
+    <div x-cloak x-show="showModal" x-transition.opacity class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div @click.away="showModal = false" class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <template x-if="selectedMethod">
+                <div>
+                    <div class="p-8 bg-slate-50 border-b border-slate-100">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h2 class="text-3xl font-black text-slate-900 leading-none mb-2" x-text="selectedMethod.method"></h2>
+                                <div class="flex items-center gap-2">
+                                    <span class="flex h-2 w-2 rounded-full" :class="selectedMethod.violation ? 'bg-red-500' : 'bg-green-500'"></span>
+                                    <p class="text-xs font-bold uppercase tracking-widest text-slate-500" x-text="selectedMethod.violation ? 'Constraint Violation Detected' : 'Compatible Process'"></p>
+                                </div>
+                            </div>
+                            <button @click="showModal = false" class="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                                 <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="p-8 space-y-5">
+                        <template x-for="(score, key) in selectedMethod.details" :key="key">
+                            <div>
+                                <div class="flex justify-between mb-1.5 items-end">
+                                    <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider" x-text="key.replace(/([A-Z])/g, ' $1')"></span>
+                                    <span class="text-xs font-mono font-black" :class="score === 0 ? 'text-red-500' : 'text-blue-600'" x-text="score.toFixed(3)"></span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                    <div class="h-full transition-all duration-1000" :class="score === 0 ? 'bg-red-500' : 'bg-blue-600'" :style="'width: ' + (score * 100) + '%'"></div>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <div class="mt-8 pt-6 border-t border-slate-100">
+                            <div class="bg-blue-50 rounded-2xl p-4 flex items-center gap-4">
+                                <div class="bg-white p-3 rounded-xl shadow-sm text-blue-600">
+                                    <i data-lucide="info" class="w-5 h-5"></i>
+                                </div>
+                                <p class="text-xs font-semibold text-blue-900/70 leading-relaxed">
+                                    A score of 0.000 in any parameter marks a "Hard Violation", excluding the method regardless of high scores in other areas.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</body>
+</html>
